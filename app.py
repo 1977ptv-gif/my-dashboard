@@ -94,7 +94,7 @@ if df is not None:
         names="Адрес",
         title="Доля выручки по адресам салонов",
         hole=0.4,
-        color_discrete_sequence=px.colors.sequential.RdBu,
+        color_discrete_sequence=px.colors.sequential.Prism,
     )
     fig_pie.update_traces(
         textposition="inside",
