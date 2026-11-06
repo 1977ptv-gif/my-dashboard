@@ -40,7 +40,7 @@ def load_data(url):
         df = df.rename(columns=rename_dict)
 
         # Очищаем данные в столбце Сумма и переводим в числа
-        df["Сумма"] = df["Сумma"].astype(str).str.replace(r"[^\d.]", "", regex=True)
+        df["Сумма"] = df["Сумма"].astype(str).str.replace(r"[^\d.]", "", regex=True)
         df["Сумма"] = pd.to_numeric(df["Сумма"], errors="coerce").fillna(0)
 
         return df
