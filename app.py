@@ -82,7 +82,7 @@ if df is not None:
     )
 
     # Отображение графиков и таблиц на экране
-    chart_col, table_col = st.columns()
+    chart_col, table_col = st.columns(2)
 
     with chart_col:
         st.plotly_chart(fig, use_container_width=True)
