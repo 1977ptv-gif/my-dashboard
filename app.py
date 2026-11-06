@@ -15,41 +15,28 @@ DATA_URL = "data.csv"
 @st.cache_data
 def load_data(url):
     try:
-        # Пробуем сначала прочитать с разделителем ТОЧКА С ЗАПЯТОЙ (часто для кириллических CSV)
-        df = pd.read_csv(
-            url, sep=";", quotechar='"', on_bad_lines="skip", encoding="utf-8"
-        )
+        # Читаем файл с разделителем ТАБУЛЯЦИЯ (\t), так как он так сохранился
+        df = pd.read_csv(url, sep=r"\t", engine="python", on_bad_lines="skip")
 
-        # Если не получилось и заголовок склеился, пробуем обычную запятую
-        if len(df.columns) <= 1:
-            df = pd.read_csv(
-                url,
-                sep=",",
-                quotechar='"',
-                on_bad_lines="skip",
-                encoding="utf-8",
-            )
-
-        # Очищаем названия столбцов от невидимых символов и пробелов
+        # Очищаем названия столбцов от лишних пробелов и кавычек
         df.columns = df.columns.str.strip().str.replace('"', "")
 
-        # Ищем столбец, который содержит слово 'Сумма'
-        sum_col = [c for c in df.columns if "Сумма" in c]
-        # Ищем столбец, который содержит слово 'Адрес'
-        addr_col = [c for c in df.columns if "Адрес" in c]
+        # Точные имена столбцов из вашей ошибки: 'название салона' и 'Сумма'
+        addr_col = "название салона"
+        sum_col = "Сумма"
 
-        if not sum_col or not addr_col:
+        if sum_col not in df.columns or addr_col not in df.columns:
             st.error(
-                f"Не удалось найти нужные столбцы. Доступные столбцы в файле: {list(df.columns)}"
+                f"Ошибка структуры! Доступные столбцы: {list(df.columns)}"
             )
             return None
 
-        # Переименовываем их для стабильной работы
-        df = df.rename(columns={sum_col[0]: "Сумма", addr_col[0]: "Адрес"})
+        # Переименовываем столбцы для удобства работы кода
+        df = df.rename(columns={sum_col: "Сумма", addr_col: "Адрес"})
 
-        # Очищаем и преобразуем Сумму в числа
+        # Очищаем данные в столбце Сумма (удаляем пробелы, валюту) и переводим в числа
         df["Сумма"] = df["Сумма"].astype(str).str.replace(r"[^\d.]", "", regex=True)
-        df["Сумма"] = pd.to_numeric(df["Сумma"], errors="coerce").fillna(0)
+        df["Сумма"] = pd.to_numeric(df["Сумма"], errors="coerce").fillna(0)
 
         return df
     except Exception as e:
@@ -64,6 +51,7 @@ if df is not None:
     total_transactions = len(df)
     unique_salons = df["Адрес"].nunique()
 
+    # Верхние карточки с метриками
     col1, col2, col3 = st.columns(3)
     col1.metric("Общая выручка", f"{total_revenue:,.0f} ₽".replace(",", " "))
     col2.metric("Количество услуг", f"{total_transactions}")
@@ -71,10 +59,13 @@ if df is not None:
 
     st.markdown("---")
 
-    # Группировка
-    df_grouped = df.groupby("Адрес")["Сумма"].sum().reset_index()
+    # Группировка выручки по салонам
+    df_grouped = (
+        df.groupby("Адрес")["Сумма"].sum().reset_index()
+    )
+    df_grouped = df_grouped.sort_values(by="Сумма", ascending=False)
 
-    # Диаграмма
+    # Построение круговой диаграммы
     fig = px.pie(
         df_grouped,
         values="Сумма",
@@ -90,6 +81,7 @@ if df is not None:
         hovertemplate="<b>%{label}</b><br>Выручка: %{value:,.0f} ₽<extra></extra>",
     )
 
+    # Отображение графиков и таблиц на экране
     chart_col, table_col = st.columns()
 
     with chart_col:
