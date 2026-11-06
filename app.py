@@ -12,7 +12,7 @@ st.markdown("---")
 
 # Прямая ссылка на ваш CSV-файл (замените на вашу ссылку, если файл лежит в другом месте)
 # Для примера код настроен на чтение файла, лежащего в том же репозитории GitHub
-DATA_URL = "https://githubusercontent.com"
+DATA_URL = "data.csv"
 
 
 @st.cache_data
