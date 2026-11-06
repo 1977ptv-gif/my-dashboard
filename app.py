@@ -6,7 +6,7 @@ st.set_page_config(
     page_title="Салон РИО — Аналитика", page_icon="✂️", layout="wide"
 )
 
-st.title("📊 Интерактивный дашборд сети salons «РИО»")
+st.title("📊 Интерактивный дашборд сети салонов «РИО»")
 st.markdown("---")
 
 DATA_URL = "data.csv"
@@ -24,7 +24,7 @@ def load_data(url):
         # Точные имена столбцов из вашей структуры таблицы
         addr_col = "название салона"
         sum_col = "Сумма"
-        master_col = "Мастер"  # Новый столбец для анализа мастеров
+        master_col = "Мастер"
 
         if sum_col not in df.columns or addr_col not in df.columns:
             st.error(
@@ -40,7 +40,7 @@ def load_data(url):
         df = df.rename(columns=rename_dict)
 
         # Очищаем данные в столбце Сумма и переводим в числа
-        df["Сумма"] = df["Сумма"].astype(str).str.replace(r"[^\d.]", "", regex=True)
+        df["Сумма"] = df["Сумma"].astype(str).str.replace(r"[^\d.]", "", regex=True)
         df["Сумма"] = pd.to_numeric(df["Сумма"], errors="coerce").fillna(0)
 
         return df
@@ -52,22 +52,38 @@ def load_data(url):
 df = load_data(DATA_URL)
 
 if df is not None:
-    total_revenue = df["Сумма"].sum()
-    total_transactions = len(df)
-    unique_salons = df["Адрес"].nunique()
+    # --- БЛОК ФИЛЬТРАЦИИ ---
+    # Создаем список уникальных адресов и добавляем вариант "Все салоны"
+    salon_options = ["Все салоны"] + sorted(df["Адрес"].unique().tolist())
+    
+    # Выводим выпадающий список (фильтр) на страницу
+    selected_salon = st.selectbox("📍 Выберите салон для фильтрации данных:", salon_options)
+
+    # Фильтруем данные в зависимости от выбора пользователя
+    if selected_salon == "Все салоны":
+        df_filtered = df.copy()
+    else:
+        df_filtered = df[df["Адрес"] == selected_salon]
+
+    st.markdown("---")
+
+    # Расчет метрик по ОТФИЛЬТРОВАННЫМ данным
+    total_revenue = df_filtered["Сумма"].sum()
+    total_transactions = len(df_filtered)
+    unique_salons = df_filtered["Адрес"].nunique()
 
     # Верхние карточки с метриками
     col1, col2, col3 = st.columns(3)
-    col1.metric("Общая выручка", f"{total_revenue:,.0f} ₽".replace(",", " "))
+    col1.metric("Выручка (выбранный период/салон)", f"{total_revenue:,.0f} ₽".replace(",", " "))
     col2.metric("Количество услуг", f"{total_transactions}")
-    col3.metric("Активных точек", f"{unique_salons}")
+    col3.metric("Активных точек в фильтре", f"{unique_salons}")
 
     st.markdown("---")
 
     # --- БЛОК 1: АНАЛИЗ САЛОНОВ ---
     # Группировка выручки по салонам
     df_grouped = (
-        df.groupby("Адрес")["Сумма"].sum().reset_index()
+        df_filtered.groupby("Адрес")["Сумма"].sum().reset_index()
     )
     df_grouped = df_grouped.sort_values(by="Сумма", ascending=False)
 
@@ -99,34 +115,36 @@ if df is not None:
         st.dataframe(df_table, use_container_width=True, hide_index=True)
 
     # --- БЛОК 2: РЕЙТИНГ МАСТЕРОВ ---
-    if "Мастер" in df.columns:
+    if "Мастер" in df_filtered.columns:
         st.markdown("---")
-        st.subheader("🏆 Рейтинг востребованности мастеров (Топ-10)")
+        st.subheader(f"🏆 Рейтинг востребованности мастеров (Топ-10) — {selected_salon}")
 
-        # Считаем, сколько раз встречается каждый мастер (количество выполненных услуг), и берем топ-10
+        # Считаем выполненные услуги по отфильтрованным мастерам
         df_masters = (
-            df["Мастер"]
+            df_filtered["Мастер"]
             .value_counts()
             .reset_index(name="Количество")
             .head(10)
         )
         df_masters = df_masters.sort_values(by="Количество", ascending=True)
 
-        # Построение горизонтального столбчатого графика
-        fig_bar = px.bar(
-            df_masters,
-            x="Количество",
-            y="Мастер",
-            orientation="h",
-            labels={"Количество": "Выполнено услуг (шт.)", "Мастер": "Имя мастера"},
-            color="Количество",
-            color_continuous_scale=px.colors.sequential.Plasma,
-        )
+        if not df_masters.empty:
+            # Построение горизонтального столбчатого графика
+            fig_bar = px.bar(
+                df_masters,
+                x="Количество",
+                y="Мастер",
+                orientation="h",
+                labels={"Количество": "Выполнено услуг (шт.)", "Мастер": "Имя мастера"},
+                color="Количество",
+                color_continuous_scale=px.colors.sequential.Plasma,
+            )
 
-        fig_bar.update_layout(
-            showlegend=False, margin=dict(l=150, r=20, t=20, b=20)
-        )
+            fig_bar.update_layout(
+                showlegend=False, margin=dict(l=150, r=20, t=20, b=20)
+            )
 
-        # Выводим новый график на всю ширину экрана
-        st.plotly_chart(fig_bar, use_container_width=True)
-
+            # Выводим новый график на всю ширину экрана
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.info("Нет данных по мастерам для выбранного фильтра.")
