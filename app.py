@@ -19,7 +19,7 @@ DATA_URL = "data.csv"
 def load_data(url):
     try:
         # Читаем данные, принудительно обрабатывая кавычки и запятые
-        df = pd.read_csv(url, sep=",", quotechar='"')
+        df = pd.read_csv(url, sep=",", quotechar='"', on_bad_lines="skip")
         # Очищаем названия столбцов от лишних пробелов
         df.columns = df.columns.str.strip()
         # Преобразуем столбец Сумма в числовой формат
